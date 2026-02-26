@@ -1,1 +1,4 @@
 .DS_Store
+
+# API keys — never commit real secrets
+lawgpt/Secrets.swift

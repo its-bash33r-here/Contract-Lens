@@ -1,5 +1,5 @@
 //
-//  GeminiService.swift
+//  Service.swift
 //  lawgpt
 //
 //  Created by Bash33r on 01/12/25.
@@ -9,16 +9,16 @@ import Foundation
 import UIKit
 import Combine
 
-/// Service for interacting with Gemini API via REST API (no SDK)
-/// Based on official Gemini API documentation: https://ai.google.dev/gemini-api/docs
+/// Service for interacting with  API via REST API (no SDK)
+/// Based on official  API documentation: https://ai.google.dev/-api/docs
 @MainActor
-class GeminiService: ObservableObject {
+class Service: ObservableObject {
     // MARK: - Configuration
     
-    private let apiKey = "AIzaSyB97l4v7acZfln4phIdFEm2J5OeiA4oSug"
+    private let apiKey = Secrets.geminiAPIKey
     private let baseURL = "https://generativelanguage.googleapis.com/v1beta"
-    private let primaryModelName = "gemini-2.5-flash"
-    private let fallbackModelName = "gemini-2.5-flash-lite"
+    private let primaryModelName = "-2.5-flash"
+    private let fallbackModelName = "-2.5-flash-lite"
     private var currentModelName: String
     
     // DEBUG: Set to true to simulate quota exhaustion for testing
@@ -345,22 +345,22 @@ class GeminiService: ObservableObject {
             
         } catch {
             let errorDescription: String
-            if let geminiError = error as? GeminiError {
-                errorDescription = geminiError.localizedDescription
-                print("❌ Gemini API Error in sendMessageWithImage (GeminiError):")
-                print("   \(geminiError.localizedDescription)")
-                if case .httpError(let statusCode, let message) = geminiError {
+            if let Error = error as? Error {
+                errorDescription = Error.localizedDescription
+                print("❌  API Error in sendMessageWithImage (Error):")
+                print("   \(Error.localizedDescription)")
+                if case .httpError(let statusCode, let message) = Error {
                     print("   HTTP Status: \(statusCode)")
                     print("   Message: \(message)")
                 }
             } else if let urlError = error as? URLError {
                 errorDescription = "Network error: \(urlError.localizedDescription)"
-                print("❌ Gemini API Error in sendMessageWithImage (URLError):")
+                print("❌  API Error in sendMessageWithImage (URLError):")
                 print("   Code: \(urlError.code.rawValue)")
                 print("   Description: \(urlError.localizedDescription)")
             } else {
                 errorDescription = error.localizedDescription
-                print("❌ Gemini API Error in sendMessageWithImage (Unknown):")
+                print("❌  API Error in sendMessageWithImage (Unknown):")
                 print("   Error: \(errorDescription)")
                 print("   Error type: \(type(of: error))")
             }
@@ -369,7 +369,7 @@ class GeminiService: ObservableObject {
             isLoading = false
             
             // Check if quota exhausted - return special indicator for fallback
-            if let geminiError = error as? GeminiError, case .httpError(429, _) = geminiError {
+            if let Error = error as? Error, case .httpError(429, _) = Error {
                 // Return special error message that indicates quota exhaustion (will be checked in ChatViewModel)
                 return ("QUOTA_EXHAUSTED: The service is temporarily unavailable due to high demand. Please try again with the fallback model.", [], [])
             }
@@ -487,22 +487,22 @@ class GeminiService: ObservableObject {
             
         } catch {
             let errorDescription: String
-            if let geminiError = error as? GeminiError {
-                errorDescription = geminiError.localizedDescription
-                print("❌ Gemini API Error in sendMessage (GeminiError):")
-                print("   \(geminiError.localizedDescription)")
-                if case .httpError(let statusCode, let message) = geminiError {
+            if let Error = error as? Error {
+                errorDescription = Error.localizedDescription
+                print("❌  API Error in sendMessage (Error):")
+                print("   \(Error.localizedDescription)")
+                if case .httpError(let statusCode, let message) = Error {
                     print("   HTTP Status: \(statusCode)")
                     print("   Message: \(message)")
                 }
             } else if let urlError = error as? URLError {
                 errorDescription = "Network error: \(urlError.localizedDescription)"
-                print("❌ Gemini API Error in sendMessage (URLError):")
+                print("❌  API Error in sendMessage (URLError):")
                 print("   Code: \(urlError.code.rawValue)")
                 print("   Description: \(urlError.localizedDescription)")
             } else {
                 errorDescription = error.localizedDescription
-                print("❌ Gemini API Error in sendMessage (Unknown):")
+                print("❌  API Error in sendMessage (Unknown):")
                 print("   Error: \(errorDescription)")
                 print("   Error type: \(type(of: error))")
             }
@@ -511,7 +511,7 @@ class GeminiService: ObservableObject {
             isLoading = false
             
             // Check if quota exhausted - return special indicator for fallback
-            if case .httpError(429, _) = error as? GeminiError {
+            if case .httpError(429, _) = error as? Error {
                 // Return special error message that indicates quota exhaustion (will be checked in ChatViewModel)
                 return ("QUOTA_EXHAUSTED: The service is temporarily unavailable due to high demand. Please try again with the fallback model.", [], [])
             }
@@ -533,11 +533,11 @@ class GeminiService: ObservableObject {
         currentModelName = primaryModelName
     }
     
-    /// Make a streaming request to Gemini API using SSE (Server-Sent Events)
+    /// Make a streaming request to  API using SSE (Server-Sent Events)
     private func makeStreamingRequest(mode: ChatMode) async throws -> AsyncThrowingStream<Data, Error> {
         let urlString = "\(baseURL)/models/\(currentModelName):streamGenerateContent?alt=sse"
         guard let url = URL(string: urlString) else {
-            throw GeminiError.invalidURL
+            throw Error.invalidURL
         }
         
         var request = URLRequest(url: url)
@@ -563,7 +563,7 @@ class GeminiService: ObservableObject {
                     let (bytes, response) = try await URLSession.shared.bytes(for: request)
                     
                     guard let httpResponse = response as? HTTPURLResponse else {
-                        continuation.finish(throwing: GeminiError.invalidResponse)
+                        continuation.finish(throwing: Error.invalidResponse)
                         return
                     }
                     
@@ -581,7 +581,7 @@ class GeminiService: ObservableObject {
                         } catch {
                             // Ignore errors when reading error response
                         }
-                        continuation.finish(throwing: GeminiError.httpError(httpResponse.statusCode, errorMessage))
+                        continuation.finish(throwing: Error.httpError(httpResponse.statusCode, errorMessage))
                         return
                     }
                     
@@ -632,7 +632,7 @@ class GeminiService: ObservableObject {
     private func makeStreamingRequestWithImage(text: String, imageBase64: String, mode: ChatMode) async throws -> AsyncThrowingStream<Data, Error> {
         let urlString = "\(baseURL)/models/\(currentModelName):streamGenerateContent?alt=sse"
         guard let url = URL(string: urlString) else {
-            throw GeminiError.invalidURL
+            throw Error.invalidURL
         }
         
         var request = URLRequest(url: url)
@@ -650,7 +650,7 @@ class GeminiService: ObservableObject {
                     let (bytes, response) = try await URLSession.shared.bytes(for: request)
                     
                     guard let httpResponse = response as? HTTPURLResponse else {
-                        continuation.finish(throwing: GeminiError.invalidResponse)
+                        continuation.finish(throwing: Error.invalidResponse)
                         return
                     }
                     
@@ -665,7 +665,7 @@ class GeminiService: ObservableObject {
                                 errorMessage = message
                             }
                         } catch {}
-                        continuation.finish(throwing: GeminiError.httpError(httpResponse.statusCode, errorMessage))
+                        continuation.finish(throwing: Error.httpError(httpResponse.statusCode, errorMessage))
                         return
                     }
                     
@@ -747,7 +747,7 @@ class GeminiService: ObservableObject {
         return payload
     }
     
-    /// Build request payload for Gemini API
+    /// Build request payload for  API
     private func buildRequestPayload(mode: ChatMode) -> [String: Any] {
         var payload: [String: Any] = [:]
         
@@ -865,7 +865,7 @@ class GeminiService: ObservableObject {
     }
     
     /// Clean Vertex AI redirect URLs to extract original source URLs
-    /// Based on Gemini API documentation: redirect URLs contain the original URL in query parameters
+    /// Based on  API documentation: redirect URLs contain the original URL in query parameters
     private func cleanVertexAIURL(_ uri: String, title: String? = nil) -> String {
         // If URI is just a domain (no protocol), add https://
         if !uri.hasPrefix("http://") && !uri.hasPrefix("https://") && uri.contains(".") && !uri.contains(" ") {
@@ -981,7 +981,7 @@ class GeminiService: ObservableObject {
         }
         
         // If we can't extract the original URL, return the redirect URL
-        // The redirect URL will work when clicked (valid for 30 days per Gemini API docs)
+        // The redirect URL will work when clicked (valid for 30 days per  API docs)
         print("  ⚠️ Could not extract original URL from redirect - using redirect URL (valid for 30 days)")
         return uri
     }
@@ -1018,7 +1018,7 @@ class GeminiService: ObservableObject {
     }
     
     /// Follow redirect URL to get final destination (async)
-    /// Based on Gemini API docs: redirect URLs need to be followed to get actual source URLs
+    /// Based on  API docs: redirect URLs need to be followed to get actual source URLs
     /// URLSession automatically follows redirects, so we just need to check the final URL
     private func followRedirect(_ redirectURL: String) async -> String {
         guard let url = URL(string: redirectURL) else {
@@ -1091,7 +1091,7 @@ class GeminiService: ObservableObject {
             }
         }
         
-        // Fallback: return the redirect URL (valid for 30 days per Gemini API docs)
+        // Fallback: return the redirect URL (valid for 30 days per  API docs)
         print("  ⚠️ Could not resolve redirect, using redirect URL (valid for 30 days)")
         return redirectURL
     }
@@ -1109,7 +1109,7 @@ class GeminiService: ObservableObject {
         
         // List of unwanted domains/patterns to filter out
         // NOTE: We do NOT filter out vertexaisearch or grounding-api-redirect URLs
-        // because these are valid redirect URLs from Gemini API that work for 30 days
+        // because these are valid redirect URLs from  API that work for 30 days
         let unwantedPatterns = [
             "dr.oracle",
             "oracle.ai",
@@ -1324,7 +1324,7 @@ class GeminiService: ObservableObject {
     
     // MARK: - Contract Analysis
 
-    /// Lightweight OCR: send an image to Gemini Vision with NO legal system prompt.
+    /// Lightweight OCR: send an image to  Vision with NO legal system prompt.
     /// Returns the raw extracted text, or nil on failure.
     func ocrImage(_ image: UIImage) async -> String? {
         let urlString = "\(baseURL)/models/\(currentModelName):generateContent"
@@ -1371,8 +1371,8 @@ class GeminiService: ObservableObject {
 
     /// Analyze a contract and return a structured JSON result for the ClauseGuard scanner.
     /// Uses the non-streaming generateContent endpoint so the full JSON can be cleanly decoded.
-    /// Stable model pinned explicitly — gemini-2.0-flash has reliable JSON-mode support.
-    private let contractAnalysisModel = "gemini-2.0-flash"
+    /// Stable model pinned explicitly — -2.0-flash has reliable JSON-mode support.
+    private let contractAnalysisModel = "-2.0-flash"
     /// Characters to truncate contract text at before sending (~25 k chars ≈ ~6 000 tokens)
     private let contractTextCharLimit = 25_000
 
@@ -1456,7 +1456,7 @@ class GeminiService: ObservableObject {
                 return nil
             }
 
-            // Parse the outer Gemini envelope to extract the inner JSON string
+            // Parse the outer  envelope to extract the inner JSON string
             guard let json       = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
                   let candidates = json["candidates"] as? [[String: Any]],
                   !candidates.isEmpty else {
@@ -1477,7 +1477,7 @@ class GeminiService: ObservableObject {
                   let parts   = content["parts"] as? [[String: Any]],
                   let rawText = parts.first?["text"] as? String else {
                 let finishReason = (candidates.first?["finishReason"] as? String) ?? "unknown"
-                print("❌ analyzeContract: Failed to parse Gemini envelope. finishReason=\(finishReason)")
+                print("❌ analyzeContract: Failed to parse  envelope. finishReason=\(finishReason)")
                 return nil
             }
 
@@ -1502,7 +1502,7 @@ class GeminiService: ObservableObject {
     // MARK: - Utility Methods
 
     var isConfigured: Bool {
-        return !apiKey.isEmpty && apiKey != "YOUR_GEMINI_API_KEY"
+        return !apiKey.isEmpty && apiKey != "YOUR__API_KEY"
     }
     
     func resetChat() {
@@ -1539,7 +1539,7 @@ struct ChatPart {
 
 // MARK: - Error Types
 
-enum GeminiError: LocalizedError {
+enum Error: LocalizedError {
     case invalidURL
     case invalidResponse
     case noData
@@ -1591,7 +1591,7 @@ class SSEParser {
 
 // MARK: - Mock Service for Previews
 
-class MockGeminiService: GeminiService {
+class MockService: Service {
     override init() {
         super.init()
     }
