@@ -1,152 +1,126 @@
-# LawGPT
+# ClauseGuard
 
-LawGPT is an iOS/iPadOS app that provides accurate legal information from trusted sources using AI.
+> **TerraCode Convergence 2026 Hackathon Project**
+
+**ClauseGuard** is an AI-powered iOS app that scans any contract in seconds and flags dangerous clauses — before you sign something you'll regret.
+
+Paste text, snap a photo, or upload a PDF. ClauseGuard returns a **Safety Score**, plain-English explanations for every red flag, and suggested fixes — powered by Google Gemini 2.0 Flash.
+
+---
 
 ## Features
 
-- 💬 Chat-based legal information queries
-- 🎤 Voice input support
-- 📷 Image analysis for legal documents and contracts
-- 📱 Support for iPhone and iPad
+- **Contract Scanner** — Paste text, photograph a document, or import a PDF
+- **Safety Score (0–100)** — Instant risk rating with a visual arc gauge
+- **Flag Cards** — Every risky clause quoted, explained, and accompanied by a suggested fix
+- **Legal Chat** — Ask follow-up questions about any clause in plain English
+- **Voice Input** — Dictate questions hands-free
+- **Export** — Share full analysis as PDF or plain text
+- **Conversation History** — All past analyses saved locally via Core Data
 
-## Requirements
+---
 
-- iOS 16.6+
-- iPadOS 16.6+
-- Xcode 15.0+
-- Swift 5.0+
+## Tech Stack
 
-## Building the App
+| Layer | Technology |
+|---|---|
+| Platform | iOS 16.6+ / iPadOS 16.6+, SwiftUI |
+| Architecture | MVVM + Core Data |
+| AI | Google Gemini 2.0 Flash (contract analysis, JSON mode) |
+| AI — Chat/OCR | Google Gemini 2.5 Flash |
+| Document OCR | Apple Vision framework (on-device) |
+| PDF parsing | PDFKit |
+| Voice | AVFoundation / SFSpeechRecognizer |
 
-1. Clone the repository:
+---
+
+## Getting Started
+
+### Prerequisites
+
+- Xcode 15.4+
+- iOS 16.6+ device or simulator
+- A [Google AI Studio](https://aistudio.google.com) API key (free tier works)
+
+### Setup
+
+1. Clone the repo:
    ```bash
-   git clone https://github.com/its-bash33r-here/lawgpt.git
-   cd lawgpt
+   git clone https://github.com/its-bash33r-here/Contract-Lens.git
+   cd Contract-Lens
    ```
 
-2. Open the project in Xcode:
+2. Add your Gemini API key:
+   ```bash
+   cp lawgpt/Secrets.swift.template lawgpt/Secrets.swift
+   # Edit lawgpt/Secrets.swift and replace YOUR_GEMINI_API_KEY_HERE
+   ```
+
+3. Add `Secrets.swift` to the Xcode project:
+   - Right-click the `lawgpt` group in the Project Navigator
+   - **Add Files to "lawgpt"** → select `Secrets.swift` → Add
+
+4. Open the project:
    ```bash
    open lawgpt.xcodeproj
    ```
 
-3. Select your development team in the project settings.
+5. Select your development team under **Signing & Capabilities**, then build and run.
 
-4. Build and run on your device or simulator.
+> `Secrets.swift` is gitignored — your API key will never be committed.
 
-## TestFlight Deployment
+---
 
-### Prerequisites
+## Project Structure
 
-Before deploying to TestFlight, ensure you have:
+```
+lawgpt/
+├── Models/
+│   ├── ContractAnalysisResult.swift   # Codable result + clause models
+│   └── ConversationThread.swift       # Core Data chat model
+├── ViewModels/
+│   ├── ContractScannerViewModel.swift # Scanner state machine
+│   └── ChatViewModel.swift            # Legal chat logic
+├── Views/
+│   ├── ContractScannerView.swift      # Full scanner flow (input → results)
+│   ├── SafetyGaugeView.swift          # Arc-based score gauge
+│   ├── FlagCardView.swift             # Expandable clause cards
+│   └── ActiveChatView.swift           # Legal chat interface
+├── Services/
+│   ├── GeminiService.swift            # Gemini REST client (chat + analysis)
+│   └── ExportService.swift            # PDF / text export
+└── Secrets.swift.template             # API key template (copy → Secrets.swift)
+```
 
-1. **Apple Developer Account** - An active Apple Developer Program membership ($99/year)
-2. **App Store Connect Access** - Your app registered in App Store Connect
-3. **App Icon** - A 1024x1024 app icon (required for App Store)
-4. **Bundle Identifier** - Currently set to `com.kb.lawgpt` (update in Xcode project settings)
+---
 
-### Option 1: Deploy Using Xcode (Manual)
+## How It Works
 
-1. **Open the project** in Xcode
-2. **Select your team** in Signing & Capabilities
-3. **Set version and build number** in General settings
-4. **Archive the app**:
-   - Select "Any iOS Device" as the build destination
-   - Go to Product → Archive
-5. **Distribute via App Store Connect**:
-   - In the Organizer, select your archive
-   - Click "Distribute App"
-   - Choose "App Store Connect"
-   - Follow the prompts to upload
+1. User inputs a contract (text / camera / PDF)
+2. PDF text is extracted via PDFKit; images are OCR'd via Vision
+3. Text is truncated to 25k chars and sent to `gemini-2.0-flash` with a structured JSON schema prompt
+4. Gemini returns `{ safety_score, summary, analysis[] }` — each clause has `type`, `title`, `quote`, `explanation`, `fix`
+5. Results are decoded into `ContractAnalysisResult` and rendered as a Safety Gauge + Flag Cards
 
-### Option 2: Deploy Using GitHub Actions (Automated)
+---
 
-This repository includes a GitHub Actions workflow for automated TestFlight deployment.
+## Permissions
 
-#### Setting Up GitHub Secrets
+| Permission | Reason |
+|---|---|
+| Camera | Photograph physical contracts |
+| Photo Library | Select contract images from gallery |
+| Microphone | Voice input for legal questions |
+| Speech Recognition | Convert voice to text |
 
-Add the following secrets to your GitHub repository (Settings → Secrets and variables → Actions):
-
-| Secret Name | Description |
-|-------------|-------------|
-| `P12_CERTIFICATE_BASE64` | Base64-encoded distribution certificate (.p12) |
-| `P12_PASSWORD` | Password for the .p12 certificate |
-| `PROVISIONING_PROFILE_BASE64` | Base64-encoded App Store provisioning profile |
-| `KEYCHAIN_PASSWORD` | A temporary password for the build keychain |
-| `APPLE_TEAM_ID` | Your Apple Developer Team ID (e.g., `58PGB8ZUDS`) |
-| `APP_STORE_CONNECT_API_KEY_ID` | App Store Connect API Key ID |
-| `APP_STORE_CONNECT_API_ISSUER_ID` | App Store Connect Issuer ID |
-| `APP_STORE_CONNECT_API_KEY_BASE64` | Base64-encoded API key file (.p8) |
-
-#### How to Get These Values
-
-1. **P12 Certificate**:
-   - Open Keychain Access
-   - Export your "Apple Distribution" certificate as .p12
-   - Encode: `base64 -i certificate.p12 | pbcopy`
-
-2. **Provisioning Profile**:
-   - Download from Apple Developer Portal
-   - Encode: `base64 -i profile.mobileprovision | pbcopy`
-
-3. **App Store Connect API Key**:
-   - Go to App Store Connect → Users and Access → Keys
-   - Generate a new API key with "App Manager" role
-   - Download the .p8 file
-   - Encode: `base64 -i AuthKey_XXXXXX.p8 | pbcopy`
-
-#### Triggering a Deployment
-
-- **Automatic**: Push to `main` branch or create a tag starting with `v`
-- **Manual**: Go to Actions → "Deploy to TestFlight" → Run workflow
-
-### App Store Connect Setup
-
-Before your first TestFlight upload:
-
-1. Log in to [App Store Connect](https://appstoreconnect.apple.com)
-2. Create a new app with bundle ID `com.kb.lawgpt`
-3. Fill in the required metadata:
-   - App Name: LawGPT
-   - Primary Language: English
-   - Bundle ID: com.kb.lawgpt
-   - SKU: A unique identifier (e.g., LAWGPT001)
-4. Add screenshots (required for TestFlight):
-   - 6.7" (iPhone 14 Pro Max)
-   - 6.5" (iPhone 14 Plus)
-   - 5.5" (iPhone 8 Plus)
-   - 12.9" iPad Pro
-5. Add privacy policy URL (required)
-
-### TestFlight Testing
-
-After successful upload:
-
-1. Wait for Apple to process the build (usually 15-30 minutes)
-2. Go to App Store Connect → TestFlight
-3. Add internal testers (up to 100)
-4. Submit for external testing review if needed (up to 10,000 testers)
-
-## App Icon
-
-The project includes an app icon slot but requires a 1024x1024 icon image. To add your icon:
-
-1. Create a 1024x1024 PNG image
-2. Open `Assets.xcassets` in Xcode
-3. Drag your icon to the `AppIcon` asset
-
-## Privacy & Permissions
-
-The app requests the following permissions:
-
-- **Camera**: To capture and analyze legal documents and contracts
-- **Microphone**: For voice input
-- **Photo Library**: To analyze legal documents
-- **Speech Recognition**: To convert voice to text
+---
 
 ## License
 
-[Add your license here]
+MIT — see [LICENSE](LICENSE)
 
-## Support
+---
 
-[Add support contact information here]
+## Disclaimer
+
+ClauseGuard provides general legal information only. It does not constitute legal advice and does not create an attorney-client relationship. Always consult a licensed attorney before signing any agreement.
