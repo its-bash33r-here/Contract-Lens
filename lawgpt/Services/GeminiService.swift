@@ -12,13 +12,13 @@ import Combine
 /// Service for interacting with  API via REST API (no SDK)
 /// Based on official  API documentation: https://ai.google.dev/-api/docs
 @MainActor
-class Service: ObservableObject {
+class GeminiService: ObservableObject {
     // MARK: - Configuration
     
     private let apiKey = Secrets.geminiAPIKey
     private let baseURL = "https://generativelanguage.googleapis.com/v1beta"
-    private let primaryModelName = "-2.5-flash"
-    private let fallbackModelName = "-2.5-flash-lite"
+    private let primaryModelName = "gemini-2.5-flash"
+    private let fallbackModelName = "gemini-2.5-flash-lite"
     private var currentModelName: String
     
     // DEBUG: Set to true to simulate quota exhaustion for testing
@@ -345,11 +345,11 @@ class Service: ObservableObject {
             
         } catch {
             let errorDescription: String
-            if let Error = error as? Error {
-                errorDescription = Error.localizedDescription
-                print("❌  API Error in sendMessageWithImage (Error):")
-                print("   \(Error.localizedDescription)")
-                if case .httpError(let statusCode, let message) = Error {
+            if let apiError = error as? GeminiAPIError {
+                errorDescription = apiError.localizedDescription
+                print("❌  API Error in sendMessageWithImage (GeminiAPIError):")
+                print("   \(apiError.localizedDescription)")
+                if case .httpError(let statusCode, let message) = apiError {
                     print("   HTTP Status: \(statusCode)")
                     print("   Message: \(message)")
                 }
@@ -369,7 +369,7 @@ class Service: ObservableObject {
             isLoading = false
             
             // Check if quota exhausted - return special indicator for fallback
-            if let Error = error as? Error, case .httpError(429, _) = Error {
+            if let apiError = error as? GeminiAPIError, case .httpError(429, _) = apiError {
                 // Return special error message that indicates quota exhaustion (will be checked in ChatViewModel)
                 return ("QUOTA_EXHAUSTED: The service is temporarily unavailable due to high demand. Please try again with the fallback model.", [], [])
             }
@@ -487,11 +487,11 @@ class Service: ObservableObject {
             
         } catch {
             let errorDescription: String
-            if let Error = error as? Error {
-                errorDescription = Error.localizedDescription
-                print("❌  API Error in sendMessage (Error):")
-                print("   \(Error.localizedDescription)")
-                if case .httpError(let statusCode, let message) = Error {
+            if let apiError = error as? GeminiAPIError {
+                errorDescription = apiError.localizedDescription
+                print("❌  API Error in sendMessage (GeminiAPIError):")
+                print("   \(apiError.localizedDescription)")
+                if case .httpError(let statusCode, let message) = apiError {
                     print("   HTTP Status: \(statusCode)")
                     print("   Message: \(message)")
                 }
@@ -511,7 +511,7 @@ class Service: ObservableObject {
             isLoading = false
             
             // Check if quota exhausted - return special indicator for fallback
-            if case .httpError(429, _) = error as? Error {
+            if let apiError = error as? GeminiAPIError, case .httpError(429, _) = apiError {
                 // Return special error message that indicates quota exhaustion (will be checked in ChatViewModel)
                 return ("QUOTA_EXHAUSTED: The service is temporarily unavailable due to high demand. Please try again with the fallback model.", [], [])
             }
@@ -534,10 +534,10 @@ class Service: ObservableObject {
     }
     
     /// Make a streaming request to  API using SSE (Server-Sent Events)
-    private func makeStreamingRequest(mode: ChatMode) async throws -> AsyncThrowingStream<Data, Error> {
+    private func makeStreamingRequest(mode: ChatMode) async throws -> AsyncThrowingStream<Data, any Error> {
         let urlString = "\(baseURL)/models/\(currentModelName):streamGenerateContent?alt=sse"
         guard let url = URL(string: urlString) else {
-            throw Error.invalidURL
+            throw GeminiAPIError.invalidURL
         }
         
         var request = URLRequest(url: url)
@@ -563,7 +563,7 @@ class Service: ObservableObject {
                     let (bytes, response) = try await URLSession.shared.bytes(for: request)
                     
                     guard let httpResponse = response as? HTTPURLResponse else {
-                        continuation.finish(throwing: Error.invalidResponse)
+                        continuation.finish(throwing: GeminiAPIError.invalidResponse)
                         return
                     }
                     
@@ -581,7 +581,7 @@ class Service: ObservableObject {
                         } catch {
                             // Ignore errors when reading error response
                         }
-                        continuation.finish(throwing: Error.httpError(httpResponse.statusCode, errorMessage))
+                        continuation.finish(throwing: GeminiAPIError.httpError(httpResponse.statusCode, errorMessage))
                         return
                     }
                     
@@ -629,10 +629,10 @@ class Service: ObservableObject {
     }
     
     /// Make a streaming request with image
-    private func makeStreamingRequestWithImage(text: String, imageBase64: String, mode: ChatMode) async throws -> AsyncThrowingStream<Data, Error> {
+    private func makeStreamingRequestWithImage(text: String, imageBase64: String, mode: ChatMode) async throws -> AsyncThrowingStream<Data, any Error> {
         let urlString = "\(baseURL)/models/\(currentModelName):streamGenerateContent?alt=sse"
         guard let url = URL(string: urlString) else {
-            throw Error.invalidURL
+            throw GeminiAPIError.invalidURL
         }
         
         var request = URLRequest(url: url)
@@ -650,7 +650,7 @@ class Service: ObservableObject {
                     let (bytes, response) = try await URLSession.shared.bytes(for: request)
                     
                     guard let httpResponse = response as? HTTPURLResponse else {
-                        continuation.finish(throwing: Error.invalidResponse)
+                        continuation.finish(throwing: GeminiAPIError.invalidResponse)
                         return
                     }
                     
@@ -665,7 +665,7 @@ class Service: ObservableObject {
                                 errorMessage = message
                             }
                         } catch {}
-                        continuation.finish(throwing: Error.httpError(httpResponse.statusCode, errorMessage))
+                        continuation.finish(throwing: GeminiAPIError.httpError(httpResponse.statusCode, errorMessage))
                         return
                     }
                     
@@ -1372,7 +1372,7 @@ class Service: ObservableObject {
     /// Analyze a contract and return a structured JSON result for the ClauseGuard scanner.
     /// Uses the non-streaming generateContent endpoint so the full JSON can be cleanly decoded.
     /// Stable model pinned explicitly — -2.0-flash has reliable JSON-mode support.
-    private let contractAnalysisModel = "-2.0-flash"
+    private let contractAnalysisModel = "gemini-2.0-flash"
     /// Characters to truncate contract text at before sending (~25 k chars ≈ ~6 000 tokens)
     private let contractTextCharLimit = 25_000
 
@@ -1539,7 +1539,7 @@ struct ChatPart {
 
 // MARK: - Error Types
 
-enum Error: LocalizedError {
+enum GeminiAPIError: LocalizedError {
     case invalidURL
     case invalidResponse
     case noData
@@ -1591,7 +1591,7 @@ class SSEParser {
 
 // MARK: - Mock Service for Previews
 
-class MockService: Service {
+class MockService: GeminiService {
     override init() {
         super.init()
     }

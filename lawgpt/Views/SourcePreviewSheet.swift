@@ -13,102 +13,102 @@ struct SourcePreviewSheet: View {
     let source: Source
     @Binding var isPresented: Bool
     @State private var showSafari = false
-    
+
+    private var sourceHeaderView: some View {
+        HStack(spacing: 12) {
+            AsyncImage(url: source.faviconURL) { image in
+                image.resizable().aspectRatio(contentMode: .fit)
+            } placeholder: {
+                Image(systemName: "globe").foregroundColor(.secondary)
+            }
+            .frame(width: 32, height: 32)
+            .clipShape(RoundedRectangle(cornerRadius: 6))
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(source.domain)
+                    .font(DesignSystem.secondaryBodyFont())
+                    .foregroundColor(.secondary)
+                Text(source.title)
+                    .font(DesignSystem.heading3Font())
+                    .foregroundColor(.primary)
+                    .lineLimit(2)
+            }
+            Spacer()
+        }
+        .padding()
+        .background(Color(.systemGray6))
+    }
+
+    @ViewBuilder
+    private var snippetView: some View {
+        if let snippet = source.snippet, !snippet.isEmpty {
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Preview")
+                    .font(DesignSystem.captionFont())
+                    .fontWeight(.semibold)
+                    .foregroundColor(.secondary)
+                Text(snippet)
+                    .font(DesignSystem.bodyFont())
+                    .foregroundColor(.primary)
+                    .lineLimit(5)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding()
+        }
+    }
+
+    private var urlSectionView: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("URL")
+                .font(DesignSystem.captionFont())
+                .fontWeight(.semibold)
+                .foregroundColor(.secondary)
+            if let url = URL(string: source.url) {
+                Link(destination: url) {
+                    Text(source.url)
+                        .font(DesignSystem.captionFont())
+                        .foregroundColor(.legalAccent)
+                        .lineLimit(3)
+                        .underline()
+                }
+            } else {
+                Text(source.url)
+                    .font(DesignSystem.captionFont())
+                    .foregroundColor(.secondary)
+                    .lineLimit(3)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding()
+    }
+
+    private var openButton: some View {
+        Button(action: { showSafari = true }) {
+            HStack {
+                Image(systemName: "safari")
+                Text("Open Source")
+            }
+            .font(DesignSystem.heading3Font())
+            .foregroundColor(.white)
+            .frame(maxWidth: .infinity)
+            .frame(minHeight: 44)
+            .padding()
+            .background(Color.legalAccent)
+            .cornerRadius(12)
+        }
+        .accessibilityLabel("Open source in Safari")
+        .accessibilityHint("Opens the source website in Safari")
+        .padding()
+    }
+
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
-                // Header with favicon and domain
-                HStack(spacing: 12) {
-                    AsyncImage(url: source.faviconURL) { image in
-                        image
-                            .resizable()
-                            .aspectRatio(contentMode: .fit)
-                    } placeholder: {
-                        Image(systemName: "globe")
-                            .foregroundColor(.secondary)
-                    }
-                    .frame(width: 32, height: 32)
-                    .clipShape(RoundedRectangle(cornerRadius: 6))
-                    
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(source.domain)
-                            .font(DesignSystem.secondaryBodyFont())
-                            .foregroundColor(.secondary)
-                        
-                        Text(source.title)
-                            .font(DesignSystem.heading3Font())
-                            .foregroundColor(.primary)
-                            .lineLimit(2)
-                    }
-                    
-                    Spacer()
-                }
-                .padding()
-                .background(Color(.systemGray6))
-                
-                // Snippet/Preview
-                if let snippet = source.snippet, !snippet.isEmpty {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Preview")
-                            .font(DesignSystem.captionFont())
-                            .fontWeight(.semibold)
-                            .foregroundColor(.secondary)
-                        
-                        Text(snippet)
-                            .font(DesignSystem.bodyFont())
-                            .foregroundColor(.primary)
-                            .lineLimit(5)
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding()
-                }
-                
-                // URL
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("URL")
-                        .font(DesignSystem.captionFont())
-                        .fontWeight(.semibold)
-                        .foregroundColor(.secondary)
-                    
-                    if let url = URL(string: source.url) {
-                        Link(destination: url) {
-                            Text(source.url)
-                                .font(DesignSystem.captionFont())
-                                .foregroundColor(.legalAccent)
-                                .lineLimit(3)
-                                .underline()
-                        }
-                    } else {
-                        Text(source.url)
-                            .font(DesignSystem.captionFont())
-                            .foregroundColor(.secondary)
-                            .lineLimit(3)
-                    }
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding()
-                
+                sourceHeaderView
+                snippetView
+                urlSectionView
                 Spacer()
-                
-                // Open button
-                Button(action: {
-                    showSafari = true
-                }) {
-                    HStack {
-                        Image(systemName: "safari")
-                        Text("Open Source")
-                    }
-                    .font(DesignSystem.heading3Font())
-                    .foregroundColor(.white)
-                    .frame(maxWidth: .infinity)
-                    .frame(minHeight: 44) // Minimum touch target
-                    .padding()
-                    .background(Color.legalAccent)
-                    .cornerRadius(12)
-                }
-                .accessibilityLabel("Open source in Safari")
-                .accessibilityHint("Opens the source website in Safari")
-                .padding()
+                openButton
             }
             .navigationTitle("Source")
             .navigationBarTitleDisplayMode(.inline)
