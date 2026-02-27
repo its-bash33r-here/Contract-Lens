@@ -1372,7 +1372,7 @@ class GeminiService: ObservableObject {
     /// Analyze a contract and return a structured JSON result for the ClauseGuard scanner.
     /// Uses the non-streaming generateContent endpoint so the full JSON can be cleanly decoded.
     /// Stable model pinned explicitly — -2.0-flash has reliable JSON-mode support.
-    private let contractAnalysisModel = "gemini-2.0-flash"
+    private let contractAnalysisModel = "gemini-2.5-flash"
     /// Characters to truncate contract text at before sending (~25 k chars ≈ ~6 000 tokens)
     private let contractTextCharLimit = 25_000
 
